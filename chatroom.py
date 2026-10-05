@@ -60,7 +60,7 @@ async def send_message_to_everyone(token, messages, status_message=None, bot=Non
         messages = [msg.strip() for msg in messages.split(",") if msg.strip()]
     sent_count, total_chatrooms, from_date = 0, 0, None
     connector = aiohttp.TCPConnector(limit=30)
-    async with aiohttp.ClientSession(connector=connector) as session:
+    async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         while True:
             chatrooms, next_from_date = (
                 await fetch_chatrooms(session, token)

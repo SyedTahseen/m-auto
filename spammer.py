@@ -76,7 +76,7 @@ async def check_many_emails(emails, needed, concurrency=20):
     stop_event = asyncio.Event()
 
     connector = aiohttp.TCPConnector(limit=concurrency)
-    async with aiohttp.ClientSession(connector=connector) as session:
+    async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async def worker(email):
             if stop_event.is_set():
                 return
@@ -219,7 +219,7 @@ async def spammer_message_handler(message: Message):
             photo = message.photo[-1]
             file = await message.bot.get_file(photo.file_id)
             file_url = f"https://api.telegram.org/file/bot{message.bot.token}/{file.file_path}"
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
                 async with session.get(file_url) as resp:
                     img_bytes = await resp.read()
             img_url = await meeff_upload_image(img_bytes)
@@ -380,7 +380,7 @@ async def spammer_callback_handler(callback: CallbackQuery):
                     await set_user_filters(user_id, access_token, filters)
 
                     try:
-                        async with aiohttp.ClientSession() as _session:
+                        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as _session:
                             async with _session.post(
                                 "https://api.meeff.com/user/updateFilter/v1",
                                 json=filters,

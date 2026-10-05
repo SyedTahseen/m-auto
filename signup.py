@@ -105,7 +105,7 @@ async def check_email_exists(email):
         'Content-Type': "application/json",
         'content-type': "application/json; charset=utf-8"
     }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(url, json=payload, headers=headers) as resp:
             status = resp.status
             try:
@@ -286,7 +286,7 @@ async def signup_message_handler(message: Message):
             photo = message.photo[-1]
             file = await message.bot.get_file(photo.file_id)
             file_url = f"https://api.telegram.org/file/bot{message.bot.token}/{file.file_path}"
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
                 async with session.get(file_url) as resp:
                     img_bytes = await resp.read()
             img_url = await meeff_upload_image(img_bytes)
@@ -393,7 +393,7 @@ async def meeff_upload_image(img_bytes):
         'Content-Type': "application/json; charset=utf-8"
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
             async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
                 resp_json = await resp.json()
                 upload_info = resp_json.get("data", {}).get("uploadImageInfoList", [{}])[0]
@@ -463,7 +463,7 @@ async def try_signup(state):
         'Accept-Encoding': "gzip",
         'content-type': "application/json; charset=utf-8"
     }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(url, json=payload, headers=headers) as resp:
             result = await resp.json(content_type=None)
 
@@ -493,7 +493,7 @@ async def accept_tos(meeff_user_id: str):
         'content-type': "application/json; charset=utf-8"
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
             async with session.post(url, json=payload, headers=headers) as resp:
                 return await resp.json(content_type=None)
     except Exception as ex:
@@ -520,7 +520,7 @@ async def try_signin(email, password, device_info=None, access_token=None):
 
     if access_token:
         headers['meeff-access-token'] = access_token
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(url, json=payload, headers=headers) as resp:
             result = await resp.json(content_type=None)
             if result.get("errorCode") == "SecuredPendingDevice":
@@ -541,7 +541,7 @@ async def verify_pending_device(access_token, pending_device_id):
         'content-type': "application/json; charset=utf-8"
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
             async with session.post(url, json=payload, headers=headers) as resp:
                 return await resp.json(content_type=None)
     except Exception as ex:
@@ -557,7 +557,7 @@ async def resend_verification_email(access_token):
         'meeff-access-token': access_token,
         'content-type': "application/json; charset=utf-8"
     }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(url, json=payload, headers=headers) as resp:
             try:
                 return await resp.json(content_type=None)

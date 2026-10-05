@@ -183,7 +183,7 @@ async def run_all_countries_token(user_id, state, bot, token, account_name):
     requests_sent = countries_processed = 0
     like_limit_exceeded = False
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         for country_code in COUNTRIES:
             if not state.get("running"):
                 break

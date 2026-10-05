@@ -172,7 +172,7 @@ async def set_filter(callback_query: types.CallbackQuery) -> None:
     await set_user_filters(user_id, token, filter_data)
 
     headers = {**FILTER_HEADERS, "meeff-access-token": token}
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(MEEFF_FILTER_URL, data=json.dumps(filter_data), headers=headers) as resp:
             if resp.status == 200:
                 await callback_query.message.edit_text(

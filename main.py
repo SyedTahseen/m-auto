@@ -6,9 +6,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import aiohttp
+from aiohttp import web
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
-from aiogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, ErrorEvent
 from aiogram.types.callback_query import CallbackQuery
 from dotenv import load_dotenv
 
@@ -45,6 +46,7 @@ load_dotenv()
 
 API_TOKEN = os.getenv("API_TOKEN")
 TEMP_PASSWORD = os.getenv("TEMP_PASSWORD")
+PORT = int(os.getenv("PORT", "8000"))
 ADMIN_USER_IDS: list[int] = [
     int(uid) for uid in os.getenv("ADMIN_USER_IDS", "").split(",") if uid.strip()
 ]
@@ -64,6 +66,14 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=API_TOKEN)
 router = Router()
 dp = Dispatcher()
+
+
+@dp.errors()
+async def handle_update_error(event: ErrorEvent) -> None:
+    """Keep one broken update from looking like a silent bot freeze."""
+    update = event.update
+    logger.exception("Unhandled update %s: %s", getattr(update, "update_id", "unknown"), event.exception)
+
 
 
 user_states: dict[int, dict] = defaultdict(lambda: {
@@ -248,7 +258,7 @@ async def invoke_command(message: types.Message) -> None:
     headers_base = {"User-Agent": "okhttp/5.0.0-alpha.14", "Accept-Encoding": "gzip"}
     disabled: list[dict] = []
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         for token_obj in tokens:
             headers = {**headers_base, "meeff-access-token": token_obj["token"]}
             try:
@@ -290,7 +300,7 @@ async def add_person_command(message: types.Message) -> None:
     url = f"https://api.meeff.com/user/undoableAnswer/v5/?userId={person_id}&isOkay=1"
     headers = {"meeff-access-token": token, "Connection": "keep-alive"}
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
             async with session.get(url, headers=headers) as resp:
                 data = await resp.json(content_type=None)
         if data.get("errorCode") == "LikeExceeded":
@@ -378,7 +388,7 @@ async def assign_command(message: types.Message) -> None:
         return
 
     status = await message.reply(f"Refreshing tokens for {len(tokens)} active account(s)…")
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         for idx, token_info in enumerate(tokens):
             old_token = token_info["token"]
             account_name = token_info.get("name", f"Account {idx + 1}")
@@ -513,7 +523,7 @@ async def handle_main_message(message: types.Message) -> None:
         "meeff-access-token": token,
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
             async with session.get(
                 "https://api.meeff.com/facetalk/vibemeet/history/count/v1",
                 params={"locale": "en"}, headers=headers,
@@ -716,14 +726,51 @@ async def set_bot_commands() -> None:
     await bot.set_my_commands(commands)
 
 
+async def hello_world(request: web.Request) -> web.Response:
+    """Simple public page used by Koyeb web-service health checks."""
+    return web.Response(
+        text="Hello World!\n",
+        content_type="text/plain",
+    )
+
+
+async def health_check(request: web.Request) -> web.Response:
+    """Fast health endpoint that does not depend on Telegram or Meeff."""
+    return web.json_response({"status": "ok"})
+
+
+async def start_web_server() -> web.AppRunner:
+    app = web.Application()
+    app.router.add_get("/", hello_world)
+    app.router.add_get("/health", health_check)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    logger.info("Web server listening on 0.0.0.0:%s", PORT)
+    return runner
+
+
 async def main() -> None:
     await init_db()
-    await set_bot_commands()
-    dp.include_router(router)
+    web_runner: web.AppRunner | None = None
     try:
+        # Start the HTTP listener before Telegram setup so Koyeb can detect
+        # that the service is alive even if Telegram is temporarily slow.
+        web_runner = await start_web_server()
+        await set_bot_commands()
+        dp.include_router(router)
         logger.info("Bot starting…")
-        await dp.start_polling(bot)
+        await dp.start_polling(
+            bot,
+            polling_timeout=10,
+            handle_as_tasks=True,
+            tasks_concurrency_limit=100,
+        )
     finally:
+        if web_runner is not None:
+            await web_runner.cleanup()
         await close_db()
         logger.info("Bot stopped.")
 

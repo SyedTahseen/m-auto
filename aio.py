@@ -76,7 +76,7 @@ async def _run_aio_requests(user_id: int, bot, status_message_id: int) -> None:
             pass
 
     headers_base = {"Connection": "keep-alive"}
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         for idx, token_info in enumerate(tokens):
             token = token_info["token"]
             name = token_info.get("name", f"Account {idx + 1}")

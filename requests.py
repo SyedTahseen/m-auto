@@ -300,7 +300,7 @@ async def run_requests_single(user_id, state: dict, bot, token: str,
 
     headers = {"meeff-access-token": token, "Connection": "keep-alive"}
     connector = aiohttp.TCPConnector(limit=10)
-    async with aiohttp.ClientSession(connector=connector) as session:
+    async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         while state.get("running", True):
             try:
                 users = await _fetch_users(session, token, user_id)
@@ -413,7 +413,7 @@ async def run_requests_parallel(user_id, bot, tokens: list[dict],
         sent_since_filter = 0
         headers = {"meeff-access-token": token, "Connection": "keep-alive"}
         connector = aiohttp.TCPConnector(limit=10)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
             while acc["running"] and state.get("running", True):
                 try:
                     users = await _fetch_users(session, token, user_id)

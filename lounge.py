@@ -17,7 +17,7 @@ HEADERS = {
 async def fetch_lounge_users(token):
     headers = {**HEADERS, 'meeff-access-token': token}
     params = {'locale': "en"}
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.get(LOUNGE_URL, params=params, headers=headers) as response:
             if response.status != 200:
                 logging.error(f"Failed to fetch lounge users: {response.status}")
@@ -27,7 +27,7 @@ async def fetch_lounge_users(token):
 async def open_chatroom(token, user_id):
     headers = {**HEADERS, 'meeff-access-token': token}
     payload = {"waitingRoomId": user_id, "locale": "en"}
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(CHATROOM_URL, json=payload, headers=headers) as response:
             if response.status in (412, 401):
                 logging.error(f"Failed to open chatroom: {response.status}")
@@ -40,7 +40,7 @@ async def open_chatroom(token, user_id):
 async def send_message(token, chatroom_id, message):
     headers = {**HEADERS, 'meeff-access-token': token}
     payload = {"chatRoomId": chatroom_id, "message": message, "locale": "en"}
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         async with session.post(SEND_MESSAGE_URL, json=payload, headers=headers) as response:
             if response.status != 200:
                 logging.error(f"Failed to send message: {response.status}")

@@ -49,7 +49,7 @@ async def unsubscribe_chatroom(session, token, chatroom_id):
 async def unsubscribe_everyone(token, status_message=None, bot=None, chat_id=None):
     total_unsubscribed, from_date = 0, None
     connector = aiohttp.TCPConnector(limit=30)
-    async with aiohttp.ClientSession(connector=connector) as session:
+    async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)) as session:
         while True:
             chatrooms, next_from_date = (
                 await fetch_chatrooms(session, token)
